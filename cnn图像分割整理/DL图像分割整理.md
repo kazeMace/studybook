@@ -1,6 +1,6 @@
 # CNN 图像分割中一些常见的知识点整理
-## Residual Connection
-Residual Connection的概念来自Deep Residual Learning for Image Recognition这篇文章。首先来介绍一下这篇文章。
+## 残差结构
+残差结构的概念来自Deep Residual Learning for Image Recognition这篇文章。首先来介绍一下这篇文章。
 网络深度的重要性：
 因为CNN能够提取low/mid/high-level的特征，网络的层数越多，意味着能够提取到不同level的特征越丰富。并且，越深的网络提取的特征越抽象，越具有语义信息。
 我们认为是随着网络层数的加深，网络越来越复杂，而复杂的网络更有利于特征的抽取，因此能够达到更好的效果。而实际情况并不是这样，对于原来的网络，如果简单地增加深度，会导致梯度弥散或梯度爆炸。
@@ -8,10 +8,6 @@ Residual Connection的概念来自Deep Residual Learning for Image Recognition�
 > 对于该问题的解决方法是使用正则化初始化和中间正则化层（Batch Normalizetion）,这样可以训练几十层的网络。
 
 而现在却出现另一个问题，就是退化问题。不同于过拟合，过拟合的情况是在训练集下的效果很好，而在测试集上的效果不好，但是目前的情况是即使在测试集上的准确率也会随着层数的加深降低。
-
-
-<!-- 这个网络的优点有以下几点：
-1. -->
 
 ![ResNet block](./2.png)
 
@@ -51,23 +47,36 @@ shortcut connection的优点：
 数学证明：
 https://blog.csdn.net/u013709270/article/details/78838875
 
-## inception
+## Inception Module
+Imception Mudule是GoogLeNet提出的结构，出自论文[Going deeper with convolutions](https://arxiv.org/pdf/1409.4842.pdf)，基本思想是不需要人为决定使用哪种过滤器或是否需要池化，而由网络自行确定。我们需要做的是给网络传入这些待选的参数（如$1*1，3*3，5*5$， maxpooling），然后把输出连接起来，让网络自己学需要什么样的参数或哪些参数的组合。
+## Barch Normailzation
+Batch Normailzation这个概念是Batch Normalization: Accelerating Deep Network Training by  Reducing Internal Covariate Shift这篇文章提出的，目前这个算法已经被大量应用图像分割领域，许多方法的网络结构中都是用了它。
 
-1. inception
-2. xception
-3. deconvolution
-4. 空洞卷积
-5. skip connection
-6. drop out
-7. full convolution
-8.  bottleneck layer
-9.  uppooling
-10. 辅助分支
-11. feature map
-12. CT值阶段
-13. dice Coefficient
-14. 假阳性
-15. 平衡像素值
-16. pooling mask
-17. 连通区域分析
-18. identity transformation
+尽管随机梯度下降法对于训练深度网络简单高效，但是它有个毛病，就是需要我们人为的去选择参数，比如学习率、参数初始化、权重衰减系数、Drop out比例等。这些参数的选择对训练结果至关重要，以至于我们很多时间都浪费在这些的调参上。
+
+！[image](./6.png)
+
+Batch Normalization的强大指出有以下几点：
++ 你可以选择比较大的初始学习率，让你的训练速度飙涨。以前还需要慢慢调整学习率，甚至在网络训练到一半的时候，还需要想着学习率进一步调小的比例选择多少比较合适，现在我们可以采用初始很大的学习率，然后学习率的衰减速度也很大，因为这个算法收敛很快。当然这个算法即使你选择了较小的学习率，也比以前的收敛速度快，因为它具有快速训练收敛的特性；
++ 你再也不用去理会过拟合中dropout、L2正则项参数的选择问题，采用BN算法后，你可以移除这两项了参数，或者可以选择更小的L2正则约束参数了，因为BN具有提高网络泛化能力的特性；
++ 
+
+
+
+1. xception
+2. deconvolution
+3. 空洞卷积
+4. skip connection
+5. drop out
+6. full convolution
+7.  bottleneck layer
+8.  uppooling
+9.  辅助分支
+10. feature map
+11. CT值阶段
+12. dice Coefficient
+13. 假阳性
+14. 平衡像素值
+15. pooling mask
+16. 连通区域分析
+17. identity transformation
