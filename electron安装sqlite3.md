@@ -1,0 +1,1 @@
+在electron中用npm安装sqlite3需要使用编译安装来适应electron环境
