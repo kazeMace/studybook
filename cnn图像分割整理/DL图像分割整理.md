@@ -144,17 +144,17 @@ Batch Normalization的强大指出有以下几点：
 3. 空洞卷积
 4. skip connection
 5. dropout
-6. full convolution
-7.  bottleneck layer
-8.  uppooling
-9.  辅助分支
-10. feature map
-11. CT值阶段
-12. dice Coefficient
-13. 假阳性
-14. 平衡像素值
-15. pooling mask
-16. 连通区域分析
-17. 蒸馏法
-18. 正则化器。
-19. representational bottlenecks
+6.  bottleneck layer
+7.  uppooling
+8.  辅助分支
+9.  feature map
+10. CT值阶段
+11. dice Coefficient
+12. 假阳性
+13. 平衡像素值
+14. pooling mask
+15. 连通区域分析
+16. 蒸馏法
+17. 正则化器。
+18. representational bottlenecks
+19. 空间金字塔池化
