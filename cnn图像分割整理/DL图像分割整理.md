@@ -52,11 +52,10 @@ https://blog.csdn.net/u013709270/article/details/78838875
 ## Inception Module
 Imception Mudule最早是在[Going deeper with convolutions](https://arxiv.org/abs/1409.4842)一文中提出的结构，基本思想是不需要人为决定使用哪种过滤器或是否需要池化，而由网络自行确定。我们需要做的是给网络传入这些待选的参数（如$1*1，3*3，5*5$， maxpooling），然后把输出连接起来，让网络自己学需要什么样的参数或哪些参数的组合。
 
-inception结构有多个版本
+inception结构的改进历程
 
-### inception v1
-
-在这篇文章中，作者提出了目前图像分割主要面临的问题：
+### 最初始的Inception结构
+最初的Inception结构是[Going deeper with convolutions](https://arxiv.org/abs/1409.4842)，在这篇文章中，作者提出了目前图像分割主要面临的问题：
 1. **由于信息位置的巨大差异，为卷积操作选择合适的卷积核大小就比较困难**。信息分布更全局性的图像偏好较大的卷积核，信息分布比较局部的图像偏好较小的卷积核。
 2. 非常深的网络更容易过拟合，将梯度更新传输到整个网络是很困难的。
 3. 简单地堆叠较大的卷积层非常消耗计算资源。
@@ -93,10 +92,10 @@ inception结构有多个版本
 我们可以清楚的看到参数数量少了一个数量级
 
 ----
-### Inception v2
-inception v2出自论文[Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/pdf/1512.00567v3.pdf)
+### Inception结构的改进
+出自论文[Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/pdf/1512.00567v3.pdf)
 
-inception v2是学习了两个VGG用两个$3*3$的卷积代替一个$5*5$的卷积，此时构建更深的网络逐渐成为主流，但是模型的变大也使得计算效率越来越低，文章师徒找到一种方法在扩大网络的同事有尽可能地发挥计算性能。
+在VGG用两个$3*3$的卷积代替一个$5*5$的卷积后，构建更深的网络逐渐成为主流，但是模型的变大也使得计算效率越来越低，文章试图找到一种方法在扩大网络的同时有尽可能地发挥计算性能。
 
 改进方法
 + 将 5×5 的卷积分解为两个 3×3 的卷积运算以提升计算速度。尽管这有点违反直觉，但一个 5×5 的卷积在计算成本上是一个 3×3 卷积的 2.78 倍。所以叠加两个 3×3 卷积实际上在性能上会有所提升，如图所示：
@@ -104,32 +103,129 @@ inception v2是学习了两个VGG用两个$3*3$的卷积代替一个$5*5$的卷�
     + ![inception](./12.png)    
     + ![inception](./10.png)
     > 在两个 3×3 的卷积和后使用非线性激活还可一提高性能
+
+### 再次改进
 + 任何尺寸大于$3*3$的卷积和够可以改写成多个$3*3$的卷积，我们是否可以将$3*3$变得更小？答案是肯定的，但是文章作者发现$2*2$的对称卷积核效果不如给对称卷积核，如n×1。事实上，我们可以认为，可以用1×n的卷积核替换任何n×n的卷积和。将$n*n$ 的卷积核尺寸分解为 1×n 和 n×1 两个卷积。一个 3×3 的卷积等价于首先执行一个 1×3 的卷积再执行一个 3×1 的卷积。这种方法在成本上要比单个 3×3 的卷积降低 33%，如图所示：
     + ![inception](./11.png)
     > 任意的 $n*n$ 的卷积都可以通过1xn卷积后接nx1卷积来替代。实际上，作者发现在网络的前期使用这种分解效果并不好，还有在中度大小的feature map上使用效果才会更好。feature map（$m*m$）的大小，m在12到20之间。
     > 另外还有一种将$1*n$与$n*1$并联的设计，如下图所示
+    >
     > ![inception](./13.png)
 + 注意representational bottlenecks问题
+  
+由于深度CNN网络会不断使用pooling来减少feature maps的尺寸，从而达到增大感受野提取特征的目的。但这样做必然会使信息丢失，一般为了减少信息的过度丢失，在加入pooling层减少feature map的尺寸的同时同比例扩大channels的数目。
+> 实行的方法有以下两种
+> + 先将将channels的数目扩大（通常使用$1*1$的卷积），然后在使用pooling层来减少feature map的尺寸。不过因为有了$1*1$的卷积，这回导致计算量变得非常大
+> + 先做pooling减小feature map的尺寸，然后再用$1*1$的卷积对其channels数目放大。不过先使用pooling还是会丢失信息。
+> 两种方法如图所示：
+> ![image](./14.png)
+> 
+作者提出了一种新的方法用来解决此问题：
+
+使用两个并行的结构，$C$和$P$。其中$P$是池化层（平均池化或最大池化），$C$是卷积层。结构如下图所示：
+
+![image](./15.png)
+> 其中左图为该结构中各部分的细节，有图为该结构中各个部分的得到的特征图尺寸。这种作为可以极大地减少参数的数量，因为有了卷积层的加入，不会丢失掉信息。
+
+### 最新的inception结构
+在[Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning](https://arxiv.org/pdf/1602.07261.pdf)一文中，作者收到了同一时期效果较好的ResNet网络的结构启发，讲残差结构融入了原先的inception结构，构建了inception-v4和inception-ResNet网络。
+
+其中inception-v4网络，使用三个inception模块，如图所示：
+
+![image](./16.png)
+
+![image](./17.png)
+
+![image](./18.png)
+
+其中这三张图都是这钱的方法提到的，在inception v4的网络里，先使用第一张图的模型在底层，在网络的中间使用第二张图的结构，在网络快要结束时，使用第三张图的机构。
+
+此外，在inception v4的网络中还是用了reduction module结构，用来调整feature map的尺寸和深度，而inception结构不改变尺寸和大小，这是与之前inception结构的区别
+
+在inception-RerNet的网络中，残差结构被真正应用。inception-ResNet网络有两个版本，v1与v2。这两个版本的网络的整体结构是相同的，只是每个部分之中有细微的差异。
+在inception-ResNet v1网络中，inception结构有三个，如下图所示：
+
+![image](./19.png)
+
+![image](./20.png)
+
+![image](./21.png)
+
+我们可以看到，图中所有的inception结构去掉了pooling层，而变成了本层的输入直接shortcut到输出，并与其他并行卷积的结构做了连接，没有池化首先能保证图像尺寸不变，并且不会丢失细节，而且由于使用了残差连接的思想，使得图像的细节能够进一步保留到下一层。图中1*1的卷积为了改变通道数
+
+inception-ResNet v2网络中，inception结构同样有三个，如下图所示：
+
+![image](./22.png)
+
+![image](./23.png)
+
+![image](./24.png)
+
+相对于v1，v2仅仅是对通道数做了改变，将之前固定的通道数改成变化的
+
+！ 这里只是讲了inception结构的演变，关于网络的改进之后再讲
+
+# xception
+https://www.leiphone.com/news/201708/KGJYBHXPwsRYMhWw.html
+xception是extreme inception的意思，在inception的基础上进一步提高了效率，减小了参数
+
+传统卷积中一个卷积核就需要同时学习空间相关性和通道间的相关性，空间相关性学习的是某个特征在空间中的分布，通道间的相关性是这些不同特征的组合方式。
+
+通常，在一组特征图上进行卷积需要三维的卷积核，也即卷积核需要同时学习空间上的相关性和通道间的相关性。将这两种相关性显式地分离开来，是Inception模块的思想之一：Inception模块首先使用$1*1$的卷积核将特征图的各个通道映射到一个新的空间，在这一过程中学习通道间的相关性；再通过常规的$3*3$或$5*5$的卷积核进行卷积，以同时学习空间上的相关性和通道间的相关性。
+
+但此时，通道间的相关性和空间相关性仍旧没有完全分离，也即$3*3$或$5*5$的卷积核仍然是多通道输入的，那么是否可以假设它们可以被完全分离？显然，当所有$3*3$或$5*5$的卷积都作用在只有一个通道的特征图上时，通道间的相关性和空间上的相关性即达到了完全分离的效果。
+
+Xception更进一步，不在只是将输入数据分割成几个压缩的数据快。而是为每个输出通道单独映射空间相关性，然后在实行$1*1$的深度方面的卷积来获取跨通道的相关性。
+
+对于inception的改进，下图为inception v3的机构
+
+![image](./25.png)
+
+假设出一个简化版的inception module
+
+![image](./26.png)
+
+进一步假设，吧第一部分的3个$1*1$的卷积核统一起来，后面的3个$3*3$的卷积核分别负责一部分通道
+
+![image](./27.png)
+
+最后推广到极端形式，
+
+![image](./28.png)
+
+对每一个通道都进行卷积，之后在合并起来
+
+Xception与原版的Depth-wise convolution有两个不同之处
+1. 原版Depth-wise convolution, 先主通道卷积，在$1*1$卷积；二Xception是反过来，先$1*1$卷积，在逐通道卷积
+2. 原版Depth-wise convolution的两个卷积之间不带激活函数，二Xception在经过1*1卷积之后会带上一个Relu的非线性激活函数
 
 
+
+## depthwise separable convolution深度可分离卷积
+https://blog.csdn.net/weixin_38668159/article/details/80415626
+
+depth-wise convolution：每一层分别作卷积
+point-wise convolution ：1x1卷积，把各个层连接起来
+
+## 辅助分类器(Auxiliary Classifier)
+Going deeper with convolutions一文中提出。在创建GoogLeNet是，为了在深度较深的网络中增强梯度像所有层传播的能力。
 ### Inception v3
 辅助分类器的产生最初的目的是将有用的梯度直接先底层传送，是这题梯度可以被立即使用，并且通过在非常深的网络中消除小时梯度问题来改善训练期间的收敛性。然而本文作者发现，辅助分类器在训练早期并未有使收敛性得到改善，带不带辅助分类器的网络的效果差异不大，但是在训练过程快结束时，带有辅助分类器的网路性能开始超过不带辅助分类器的网络。另外，当去掉底层的辅助分类器，发现性能并没有多少改善，因此作文认为之前提到的辅助分类器可以更好地将参数传递给底层的假设是错误的。相反，可以认为辅助分类器可以充当正则化器。
-
+<!-- 
 Inception v3在v2的基础上：
 + RMSProp 优化器；
 + Factorized 7x7 卷积；
 + 辅助分类器使用了 BatchNorm；
-+ 标签平滑（添加到损失公式的一种正则化项，旨在阻止网络对某一类别过分自信，即阻止过拟合）。
++ 标签平滑（添加到损失公式的一种正则化项，旨在阻止网络对某一类别过分自信，即阻止过拟合）。 -->
 
-## 辅助分类器(Auxiliary Classifier)
-Going deeper with convolutions一文中提出。在创建GoogLeNet是，为了在深度较深的网络中增强梯度像所有层传播的能力。
+
 
 ## Batch Normailzation
 Batch Normailzation这个概念是Batch Normalization: Accelerating Deep Network Training by  Reducing Internal Covariate Shift这篇文章提出的，目前这个算法已经被大量应用图像分割领域，许多方法的网络结构中都是用了它。
 
 尽管随机梯度下降法对于训练深度网络简单高效，但是它有个毛病，就是需要我们人为的去选择参数，比如学习率、参数初始化、权重衰减系数、Drop out比例等。这些参数的选择对训练结果至关重要，以至于我们很多时间都浪费在这些的调参上。
 
-由于最初的Inception某块友谊写
+由于最初的Inception模块
 
 
 Batch Normalization的强大指出有以下几点：
@@ -138,23 +234,24 @@ Batch Normalization的强大指出有以下几点：
 + 
 
 
+## filter 过滤器
+就是指卷积核
 
-1. xception
-2. deconvolution
-3. 空洞卷积
-4. skip connection
-5. dropout
-6.  bottleneck layer
-7.  uppooling
-8.  辅助分支
-9.  feature map
-10. CT值阶段
-11. dice Coefficient
-12. 假阳性
-13. 平衡像素值
-14. pooling mask
-15. 连通区域分析
-16. 蒸馏法
-17. 正则化器。
-18. representational bottlenecks
-19. 空间金字塔池化
+1. deconvolution
+2. 空洞卷积
+3. skip connection
+4. dropout
+5.  bottleneck layer
+6.  uppooling
+7.  feature map
+8.  CT值阶段
+9.  dice Coefficient
+10. 假阳性
+11. 平衡像素值
+12. pooling mask
+13. 连通区域分析
+14. 蒸馏法
+15. representational bottlenecks
+16. 空间金字塔池化
+17. 分group操作
+18. xavier
