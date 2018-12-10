@@ -195,7 +195,9 @@ Xception更进一步，不在只是将输入数据分割成几个压缩的数据
 
 对每一个通道都进行卷积，之后在合并起来
 
-Xception与原版的Depth-wise convolution有两个不同之处
+该模块讲输入数据在channel维度上进行解耦合，该模块城市为"extrame" version of Inception module，这个思想是和depth-wise convolution非常相似的。
+
+但Xception与原版的Depth-wise convolution有两个不同之处
 1. 原版Depth-wise convolution, 先主通道卷积，在$1*1$卷积；二Xception是反过来，先$1*1$卷积，在逐通道卷积
 2. 原版Depth-wise convolution的两个卷积之间不带激活函数，二Xception在经过1*1卷积之后会带上一个Relu的非线性激活函数
 
@@ -204,13 +206,21 @@ Xception与原版的Depth-wise convolution有两个不同之处
 ## depthwise separable convolution深度可分离卷积
 https://blog.csdn.net/weixin_38668159/article/details/80415626
 
-depth-wise convolution：每一层分别作卷积
-point-wise convolution ：1x1卷积，把各个层连接起来
++ depth-wise convolution：每一层分别作卷积
++ point-wise convolution ：1x1卷积，把各个层连接起来
 
 ## 辅助分类器(Auxiliary Classifier)
 Going deeper with convolutions一文中提出。在创建GoogLeNet是，为了在深度较深的网络中增强梯度像所有层传播的能力。
-### Inception v3
-辅助分类器的产生最初的目的是将有用的梯度直接先底层传送，是这题梯度可以被立即使用，并且通过在非常深的网络中消除小时梯度问题来改善训练期间的收敛性。然而本文作者发现，辅助分类器在训练早期并未有使收敛性得到改善，带不带辅助分类器的网络的效果差异不大，但是在训练过程快结束时，带有辅助分类器的网路性能开始超过不带辅助分类器的网络。另外，当去掉底层的辅助分类器，发现性能并没有多少改善，因此作文认为之前提到的辅助分类器可以更好地将参数传递给底层的假设是错误的。相反，可以认为辅助分类器可以充当正则化器。
+
+辅助分类器的产生最初的目的是将有用的梯度直接先底层传送，使这些梯度可以被立即使用，并且通过在非常深的网络中消除梯度消失问题来改善训练期间的收敛性。然而作者在之后的文章提到，辅助分类器在训练早期并未有使收敛性得到改善，带不带辅助分类器的网络的效果差异不大，但是在训练过程快结束时，带有辅助分类器的网路性能开始超过不带辅助分类器的网络。另外，当去掉底层的辅助分类器，发现性能并没有多少改善，因此作者认为之前提到的辅助分类器可以更好地将参数传递给底层的假设是错误的。相反，可以认为辅助分类器可以充当正则化器。
+
+带有辅助分支的网络应该尽量放在网络的中间部位及以后，其损失函数也应该由主干网络分支的损失和所有辅助网络损失加权构成。
+
+![image](./29.png)
+
+如图所示，左侧网络路径为主干网络，右侧为辅助网络，其输出也可成为侧输出（side output），
+
+
 <!-- 
 Inception v3在v2的基础上：
 + RMSProp 优化器；
@@ -237,21 +247,50 @@ Batch Normalization的强大指出有以下几点：
 ## filter 过滤器
 就是指卷积核
 
-1. deconvolution
-2. 空洞卷积
-3. skip connection
-4. dropout
-5.  bottleneck layer
-6.  uppooling
-7.  feature map
-8.  CT值阶段
-9.  dice Coefficient
-10. 假阳性
-11. 平衡像素值
-12. pooling mask
-13. 连通区域分析
-14. 蒸馏法
-15. representational bottlenecks
-16. 空间金字塔池化
-17. 分group操作
-18. xavier
+## deconvolution
+deconvolution又称为反卷积（转置卷积），这个概念是在Deconvolutional networks（2010）提出的，后来在deconv net网络得到了在语义分割领域的应用
+
+Deconvolution大致可以分为以下几个方面：
+1. unsupervised learning，其实就是covolutional sparse coding[1][2]：这里的deconv只是观念上和传统的conv反向，传统的conv是从图片生成feature map，而deconv是用unsupervised的方法找到一组kernel和feature map，让它们重建图片。
+2. CNN可视化[3]：通过deconv将CNN中conv得到的feature map还原到像素空间，以观察特定的feature map对哪些pattern的图片敏感，这里的deconv其实不是conv的可逆运算，只是conv的transpose，所以tensorflow里一般取名叫transpose_conv。
+3. upsampling[4][5]：在pixel-wise prediction比如image segmentation[4]以及image generation[5]中，由于需要做原始图片尺寸空间的预测，而卷积由于stride往往会降低图片size， 所以往往需要通过upsampling的方法来还原到原始图片尺寸，deconv就充当了一个upsampling的角色。
+
+其中upsampling是图像的语义分割中最常用的。
+
+转置卷积的动态演示：
+https://github.com/vdumoulin/conv_arithmetic
+
+通过这个动态演示可以更清晰地理解转置卷积。
+
+转置卷积的解释：
+https://www.zhihu.com/question/43609045
+
+反卷积可视化以各层得到的特征图作为输入，进行反卷积，得到反卷积结果，用以验证显示各层提取到的特征图。举个例子：假如你想要查看Alexnet 的conv5提取到了什么东西，我们就用conv5的特征图后面接一个反卷积网络，然后通过：反池化、反激活、反卷积，这样的一个过程，把本来一张$13*13$大小的特征图(conv5大小为$13*13$)，放大回去，最后得到一张与原始输入图片一样大小的图片($227*227$)。
+## unpooling
+简介：unpooling（反池化）与deconvolotion一起构成了densenet网络，其中，dense net'中在max-pooling的过程中，保留了激活的位置，写入文件pooling mask。在上采样的过程中，先按照mask恢复图像，没有值的位置填0。然后再使用deconvolition
+
+
+
+## 空洞卷积
+空洞卷积是
+
+
+ 
+
+1. 空洞卷积
+2. skip connection
+3. dropout
+4.  bottleneck layer
+5.  uppooling
+6.  feature map
+7.  CT值阶段
+8.  dice Coefficient
+9.  假阳性
+10. 平衡像素值
+11. 连通区域分析
+12. 蒸馏法
+13. representational bottlenecks
+14. 空间金字塔池化
+15. 分group操作
+16. xavier
+17. rbm：受限玻尔兹曼机
